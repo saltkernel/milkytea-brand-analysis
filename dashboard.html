@@ -91,6 +91,28 @@
         .conclusion-panel .conclusion-item:last-child { margin-bottom: 0; }
         .conclusion-panel .conclusion-item .item-title { font-weight: bold; font-size: 13px; }
         .conclusion-panel .conclusion-item .item-desc { color: rgba(245,235,210,0.72); font-size: 12px; line-height: 1.65; }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 768px) {
+            .dashboard { padding: 8px 6px 40px; }
+            /* 双图并排 → 上下堆叠 */
+            .chart-row { flex-direction: column; gap: 14px; }
+            .chart-row.dual .chart-card { flex: 1 1 auto; }
+            /* 图表高度按手机屏幕收缩 */
+            .chart-container       { height: 340px; }
+            .chart-container.tall  { height: 380px; }
+            .chart-container.large { height: 560px; }
+            .chart-container.side  { height: 360px; }
+            /* 钻取筛选徽章贴合并限宽 */
+            .filter-badge {
+                top: calc(var(--nav-h) + 8px);
+                font-size: 12px; padding: 8px 14px;
+                max-width: 94vw; white-space: nowrap;
+                overflow: hidden; text-overflow: ellipsis;
+            }
+            .section-label { font-size: 14px; letter-spacing: 2px; }
+            .conclusion-btn { padding: 6px 14px; font-size: 12px; }
+        }
     </style>
 </head>
 <body>

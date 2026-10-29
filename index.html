@@ -86,7 +86,12 @@
         }
         .entry-card { flex: 1 1 280px; max-width: 380px; }
         @media (max-width: 900px) { .entry-card { max-width: 420px; } }
-        @media (max-width: 600px) { .entry-card { max-width: 100%; flex: 1 1 100%; } }
+        @media (max-width: 600px) {
+            .entry-card { max-width: 100%; flex: 1 1 100%; }
+            /* 开屏大标题：窄屏收字距防溢出 */
+            .intro-title { letter-spacing: 8px; text-indent: 8px; }
+            .intro-sub { letter-spacing: 2px; }
+        }
 
         .entry-card .entry-link {
             display: inline-flex; align-items: center; gap: 4px;

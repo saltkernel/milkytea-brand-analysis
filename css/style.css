@@ -25,13 +25,14 @@
 
 /* ===== 全局重置 ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 body {
     background: var(--bg);
     font-family: 'Microsoft YaHei', 'PingFang SC', 'Helvetica Neue', sans-serif;
     color: var(--text);
     overflow-x: hidden;
     line-height: 1.6;
+    -webkit-tap-highlight-color: rgba(191,160,122,0.25);
 }
 a { color: inherit; text-decoration: none; }
 
@@ -237,8 +238,31 @@ a { color: inherit; text-decoration: none; }
     .kpi-row { gap: 10px; }
     .kpi-card { min-width: 120px; padding: 16px 18px; }
     .kpi-card .kpi-value { font-size: 26px; }
-    .nav-links a { padding: 5px 8px; font-size: 11px; }
-    .site-nav { padding: 0 14px; }
+
+    /* 导航：logo 缩小 + 链接横向滑动（窄屏放不下全部链接） */
+    .site-nav { padding: 0 10px; gap: 8px; }
+    .site-nav .logo { font-size: 14px; letter-spacing: 1px; flex-shrink: 0; }
+    .site-nav .logo-icon { font-size: 18px; }
+    .nav-links {
+        flex: 1; min-width: 0; justify-content: flex-start;
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .nav-links::-webkit-scrollbar { display: none; }
+    .nav-links a { padding: 6px 10px; font-size: 12px; flex-shrink: 0; }
+
+    /* 标题与间距收紧 */
+    .page-hero { margin-bottom: 26px; }
+    .page-hero h1 { font-size: 22px; letter-spacing: 3px; }
+    .page-hero p { font-size: 12px; letter-spacing: 1px; }
+    .kpi-row { margin-bottom: 28px; }
+}
+
+/* 超窄屏（手机竖屏）微调 */
+@media (max-width: 480px) {
+    .kpi-card { min-width: calc(50% - 5px); padding: 14px 10px; }
+    .kpi-card .kpi-value { font-size: 22px; }
+    .kpi-card .kpi-label { font-size: 11px; letter-spacing: 1px; }
 }
 
 /* ===== 滚动条美化 ===== */

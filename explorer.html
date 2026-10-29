@@ -89,7 +89,13 @@
 
         @media (max-width: 768px) {
             .explorer-layout { flex-direction: column; }
-            .filter-sidebar { flex: none; width: 100%; position: static; max-height: none; }
+            .filter-sidebar { flex: none; width: 100%; position: static; max-height: none; padding: 16px; }
+        }
+        @media (max-width: 480px) {
+            .product-grid { gap: 10px; }
+            .product-card { padding: 14px; }
+            .reco-cards { gap: 10px; }
+            .reco-card { padding: 14px; min-width: 100%; }
         }
     </style>
 </head>
