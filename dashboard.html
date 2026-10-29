@@ -99,10 +99,10 @@
             .chart-row { flex-direction: column; gap: 14px; }
             .chart-row.dual .chart-card { flex: 1 1 auto; }
             /* 图表高度按手机屏幕收缩 */
-            .chart-container       { height: 340px; }
-            .chart-container.tall  { height: 380px; }
+            .chart-container       { height: 380px; }
+            .chart-container.tall  { height: 520px; }   /* 双子图上下堆叠，需要更高 */
             .chart-container.large { height: 560px; }
-            .chart-container.side  { height: 360px; }
+            .chart-container.side  { height: 420px; }
             /* 钻取筛选徽章贴合并限宽 */
             .filter-badge {
                 top: calc(var(--nav-h) + 8px);
@@ -607,8 +607,158 @@ MT.ready(function(data) {
         if(drillStack.length>1) stepBack(); else fullReset(); e.stopPropagation();
     });
 
-    // resize
-    window.addEventListener('resize', function() { chart1.resize(); chart2.resize(); chart3.resize(); chart4.resize(); chart5.resize(); chart6.resize(); });
+    // ===== 屏幕宽度自适应：手机端重新布局（双坐标系改为上下堆叠） =====
+    var isMobile = window.innerWidth <= 768;
+
+    function applyLayout(mobile) {
+        // 标题：手机端用短标题 + 左对齐，避免与右上角「结论」按钮压字
+        function titleOf(mobileText, desktopText) {
+            return {
+                text: mobile ? mobileText : desktopText,
+                top: mobile ? 6 : 8,
+                left: mobile ? 10 : 'center',
+                textAlign: mobile ? 'left' : 'center',
+                textStyle: { fontSize: mobile ? 12 : 17 },
+                subtextStyle: { fontSize: mobile ? 9 : 11 }
+            };
+        }
+        var legendSmall = {
+            bottom: mobile ? 4 : 10,
+            textStyle: { fontSize: mobile ? 9 : 11 },
+            itemWidth: mobile ? 9 : 25,
+            itemHeight: mobile ? 9 : 14,
+            itemGap: mobile ? 6 : 10
+        };
+
+        // ① 旭日图
+        chart1.setOption({
+            title: titleOf('配方层级图', origTitles.chart1),
+            series: [{ radius: mobile ? ['16%', '84%'] : ['10%', '90%'], center: ['50%', mobile ? '58%' : '55%'] }]
+        });
+
+        // ② 散点图
+        chart2.setOption({
+            title: titleOf('价格 · 热量散点图', '价格-热量战略散点图'),
+            legend: legendSmall,
+            grid: mobile ? { left: 44, right: 14, top: 74, bottom: 78 } : { left: 65, right: 50, top: 90, bottom: 80 },
+            xAxis: { nameGap: mobile ? 20 : 28, nameTextStyle: { fontSize: mobile ? 10 : 13 }, axisLabel: { fontSize: mobile ? 9 : 12 } },
+            yAxis: { nameGap: mobile ? 24 : 38, nameTextStyle: { fontSize: mobile ? 10 : 13 }, axisLabel: { fontSize: mobile ? 9 : 12 } }
+        });
+
+        // ③ 热力图：手机端色条改贴右侧竖排（窄屏不用横向），Y 轴长标签截断
+        chart3.setOption({
+            title: titleOf('基底液 × 顶料 热力图', origTitles.chart3),
+            grid: mobile ? { left: 82, right: 46, top: 78, bottom: 96 } : { left: 140, right: 80, top: 90, bottom: 60 },
+            xAxis: { axisLabel: { fontSize: mobile ? 9 : 11, rotate: mobile ? 35 : 0, interval: mobile ? 0 : 'auto' } },
+            yAxis: {
+                axisLabel: {
+                    fontSize: mobile ? 9 : 12,
+                    formatter: mobile
+                        ? function(v) { return v.length > 5 ? v.slice(0, 5) + '…' : v; }
+                        : function(v) { return v; }
+                }
+            },
+            visualMap: mobile
+                ? {
+                    min: 20, max: 90, calculable: true, orient: 'vertical',
+                    right: 2, left: 'auto', top: 92, bottom: 'auto',
+                    itemWidth: 10, itemHeight: 76, textStyle: { color: '#5C4033', fontSize: 9 },
+                    inRange: { color: ['#C4A77D', '#DAB89A', '#C19A6B', '#A67C52', '#8B6B3D', '#6B4F3A', '#4A3628'] }
+                }
+                : {
+                    min: 20, max: 90, calculable: true, orient: 'vertical',
+                    right: 10, left: 'auto', top: 80, bottom: 'auto',
+                    itemWidth: 15, itemHeight: 140, textStyle: { color: '#5C4033', fontSize: 12 },
+                    inRange: { color: ['#C4A77D', '#DAB89A', '#C19A6B', '#A67C52', '#8B6B3D', '#6B4F3A', '#4A3628'] }
+                },
+            series: [{ label: { fontSize: mobile ? 9 : 11 } }]
+        });
+
+        // ④ 堆叠柱状图：手机端 X 轴标签旋转，去掉 n= 副行
+        chart4.setOption({
+            title: titleOf('品牌 × 茶底 占比', origTitles.chart4),
+            legend: legendSmall,
+            grid: mobile ? { left: 44, right: 26, top: 76, bottom: 104 } : { left: 65, right: 40, top: 90, bottom: 80 },
+            xAxis: {
+                axisLabel: {
+                    fontSize: mobile ? 9 : 11,
+                    rotate: mobile ? 35 : 0,
+                    formatter: mobile ? function(v) { return v; } : function(v) {
+                        var n = bTotal[v];
+                        return '{name|' + v + '}\n{n|n=' + n + '}';
+                    }
+                }
+            }
+        });
+
+        // ⑤ 箱线图：双子图 → 上下堆叠；上图隐藏 X 轴标签，避免与下图重叠
+        chart5.setOption({
+            title: titleOf('价格 & 热量 箱线图', origTitles.chart5),
+            grid: mobile
+                ? [{ left: 50, right: 40, top: 70, height: '30%' }, { left: 50, right: 40, top: '52%', bottom: 54 }]
+                : [{ left: 65, right: '52%', top: 100, bottom: 60 }, { left: '52%', right: 40, top: 100, bottom: 60 }],
+            xAxis: [
+                { axisLabel: {
+                    show: !mobile,
+                    fontSize: mobile ? 8 : 10,
+                    rotate: mobile ? 40 : 0,
+                    formatter: mobile ? function(v) { return v; } : function(v) {
+                        var i = brands.indexOf(v), n = pStat[i] ? pStat[i].n : 0;
+                        return '{name|' + v + '}\n{n|n=' + n + '}';
+                    }
+                } },
+                { axisLabel: {
+                    show: true,
+                    fontSize: mobile ? 8 : 10,
+                    rotate: mobile ? 40 : 0,
+                    formatter: mobile ? function(v) { return v; } : function(v) {
+                        var i = brands.indexOf(v), n = hStat[i] ? hStat[i].n : 0;
+                        return '{name|' + v + '}\n{n|n=' + n + '}';
+                    }
+                } }
+            ],
+            yAxis: [
+                { name: mobile ? '价格' : '单位价格\n(元/100ml)', nameTextStyle: { fontSize: mobile ? 9 : 11 }, axisLabel: { fontSize: mobile ? 9 : 12 } },
+                { name: mobile ? '热量' : '单位热量\n(kcal/100ml)', nameTextStyle: { fontSize: mobile ? 9 : 11 }, axisLabel: { fontSize: mobile ? 9 : 12 } }
+            ]
+        });
+
+        // ⑥ 小料对比：双子图 → 上下堆叠；手机端去掉柱顶数值（原本互相压叠，数据看 tooltip）
+        function bare(arr) {
+            return arr.map(function(d) { return { value: d.value, n: d.n, label: { show: false } }; });
+        }
+        chart6.setOption({
+            title: titleOf('小料影响对比', origTitles.chart6),
+            legend: legendSmall,
+            grid: mobile
+                ? [{ left: 50, right: 34, top: 66, height: '31%' }, { left: 50, right: 34, top: '51%', bottom: 58 }]
+                : [{ left: 65, right: '52%', top: 100, bottom: 70 }, { left: '52%', right: 40, top: 100, bottom: 70 }],
+            xAxis: [
+                { axisLabel: { fontSize: mobile ? 8 : 10, rotate: mobile ? 30 : 0 } },
+                { axisLabel: { fontSize: mobile ? 8 : 10, rotate: mobile ? 30 : 0 } }
+            ],
+            yAxis: [
+                { name: mobile ? '元/100ml' : '平均单位价格\n(元/100ml)', nameTextStyle: { fontSize: mobile ? 9 : 11 }, axisLabel: { fontSize: mobile ? 9 : 12 } },
+                { name: mobile ? 'kcal' : '平均单位热量\n(kcal/100ml)', nameTextStyle: { fontSize: mobile ? 9 : 11 }, axisLabel: { fontSize: mobile ? 9 : 12 } }
+            ],
+            series: [
+                { data: mobile ? bare(pwD) : pwD },
+                { data: mobile ? bare(pwoD) : pwoD },
+                { data: mobile ? bare(hwD) : hwD },
+                { data: mobile ? bare(hwoD) : hwoD }
+            ]
+        });
+    }
+
+    applyLayout(isMobile);
+
+    // resize：始终同步尺寸；跨越 768px 断点时重新布局
+    window.addEventListener('resize', function() {
+        chart1.resize(); chart2.resize(); chart3.resize();
+        chart4.resize(); chart5.resize(); chart6.resize();
+        var m = window.innerWidth <= 768;
+        if (m !== isMobile) { isMobile = m; applyLayout(m); }
+    });
 });
 </script>
 

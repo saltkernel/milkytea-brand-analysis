@@ -48,6 +48,7 @@
             .brand-banner .bb-stat .val { font-size: 20px; }
             .brand-banner .bb-info h2 { font-size: 22px; letter-spacing: 2px; }
             .chart-mini { height: 340px; }
+            #distChart { height: 430px; }   /* 价格/热量双子图上下堆叠，需要更高 */
             .brand-selector { margin-bottom: 16px; }
             /* 12 列产品表：保持可读宽度，横向滑动查看 */
             .product-table .data-table { min-width: 860px; }
@@ -108,6 +109,39 @@
 
         var radarChart = echarts.init(document.getElementById('radarChart'));
         var distChart = echarts.init(document.getElementById('distChart'));
+
+        // ===== 屏幕宽度自适应：手机端双子图改上下堆叠 =====
+        var isMobile = window.innerWidth <= 768;
+
+        function applyBrandLayout(mobile) {
+            radarChart.setOption({
+                title: { top: mobile ? 6 : 8, textStyle: { fontSize: mobile ? 13 : 15 } },
+                radar: {
+                    center: ['50%', mobile ? '52%' : '52%'],
+                    radius: mobile ? '52%' : '65%',
+                    axisName: { fontSize: mobile ? 9 : 10, padding: mobile ? [2, 3] : [4, 6] }
+                }
+            });
+
+            distChart.setOption({
+                title: { top: mobile ? 6 : 8, textStyle: { fontSize: mobile ? 13 : 15 } },
+                grid: mobile
+                    ? [{ left: 44, right: 18, top: 70, height: '30%' }, { left: 44, right: 18, top: '54%', bottom: 44 }]
+                    : [{ left: 55, right: '52%', top: 80, bottom: 50 }, { left: '52%', right: 30, top: 80, bottom: 50 }],
+                xAxis: [
+                    { name: mobile ? '价格' : '单位价格', nameTextStyle: { fontSize: mobile ? 9 : 10 }, axisLabel: { fontSize: mobile ? 9 : 10 } },
+                    { name: mobile ? '热量' : '单位热量', nameTextStyle: { fontSize: mobile ? 9 : 10 }, axisLabel: { fontSize: mobile ? 9 : 10 } }
+                ],
+                yAxis: [
+                    { name: mobile ? '' : '产品数', nameTextStyle: { fontSize: mobile ? 9 : 10 }, axisLabel: { fontSize: mobile ? 9 : 10 } },
+                    { name: mobile ? '' : '产品数', nameTextStyle: { fontSize: mobile ? 9 : 10 }, axisLabel: { fontSize: mobile ? 9 : 10 } }
+                ],
+                series: [
+                    { symbolSize: function(v) { return mobile ? Math.max(6, Math.min(18, v[2] / 38)) : Math.max(8, Math.min(30, v[2] / 25)); } },
+                    { symbolSize: function(v) { return mobile ? Math.max(6, Math.min(18, v[2] / 38)) : Math.max(8, Math.min(30, v[2] / 25)); } }
+                ]
+            });
+        }
 
         // 点击切换品牌
         var currentBrand = '';
@@ -266,9 +300,16 @@
                 '</tr>';
             });
             document.getElementById('productTbody').innerHTML = tbody;
+
+            // 图表配置渲染后重新套用当前屏宽布局
+            applyBrandLayout(isMobile);
         }
 
-        window.addEventListener('resize', function(){ radarChart.resize(); distChart.resize(); });
+        window.addEventListener('resize', function() {
+            radarChart.resize(); distChart.resize();
+            var m = window.innerWidth <= 768;
+            if (m !== isMobile) { isMobile = m; applyBrandLayout(m); }
+        });
     });
 </script>
 
