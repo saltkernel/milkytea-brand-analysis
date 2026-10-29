@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>奶茶品牌图鉴 — 首页</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* ===== 首页特有样式 ===== */
+
+        /* ---- 全屏封面 ---- */
+        .intro-screen {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 1s cubic-bezier(0.65,0.05,0.36,1), opacity 0.8s ease-out;
+        }
+        .intro-screen.slid-up {
+            transform: translateY(-110%); opacity: 0; pointer-events: none;
+        }
+        .intro-bg {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .intro-overlay {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(92,64,51,0);
+            animation: overlayIn 0.8s ease-out 0.3s forwards;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes overlayIn {
+            to { background: rgba(92,64,51,0.84); }
+        }
+        .intro-title {
+            font-size: clamp(42px, 8vw, 76px);
+            font-weight: bold; letter-spacing: 16px;
+            text-indent: 16px; color: #F5EBD2;
+            opacity: 0; transform: translateY(30px) scale(0.95);
+            animation: titleIn 1.2s cubic-bezier(0.22,1,0.36,1) 0.7s forwards;
+            text-shadow: 0 4px 24px rgba(0,0,0,0.4);
+        }
+        .intro-sub {
+            font-size: clamp(14px, 2vw, 18px);
+            color: rgba(245,235,210,0.6);
+            letter-spacing: 6px; margin-top: 22px;
+            opacity: 0; transform: translateY(15px);
+            animation: subIn 1s ease-out 1.4s forwards;
+        }
+        @keyframes titleIn { to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes subIn   { to { opacity:1; transform:translateY(0); } }
+
+        .scroll-hint {
+            position: absolute; bottom: 40px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            opacity: 0;
+            animation: hintIn 0.8s ease-out 2.4s forwards,
+                       bounce 2s ease-in-out 3s infinite;
+        }
+        .scroll-hint span {
+            color: rgba(245,235,210,0.45); font-size: 12px; letter-spacing: 3px;
+        }
+        .scroll-hint .arrow {
+            width: 20px; height: 20px;
+            border-right: 2px solid rgba(245,235,210,0.4);
+            border-bottom: 2px solid rgba(245,235,210,0.4);
+            transform: rotate(45deg);
+        }
+        @keyframes hintIn { to { opacity:1; } }
+        @keyframes bounce {
+            0%,100% { transform:translateX(-50%) translateY(0); }
+            50% { transform:translateX(-50%) translateY(10px); }
+        }
+
+        /* ---- 首页主内容 ---- */
+        .home-main { position: relative; z-index: 1; }
+
+        /* ---- KPI 卡片增强 ---- */
+        .kpi-card .kpi-icon { font-size: 28px; margin-bottom: 4px; display: block; }
+
+        /* ---- 入口卡片网格（首页专用） ---- */
+        .entry-grid {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;
+        }
+        .entry-card { flex: 1 1 280px; max-width: 380px; }
+        @media (max-width: 900px) { .entry-card { max-width: 420px; } }
+        @media (max-width: 600px) { .entry-card { max-width: 100%; flex: 1 1 100%; } }
+
+        .entry-card .entry-link {
+            display: inline-flex; align-items: center; gap: 4px;
+            margin-top: 14px; font-size: 12px; color: var(--gold);
+            letter-spacing: 1px; transition: all 0.2s;
+        }
+        .entry-card .entry-link:hover { color: var(--cream); }
+        .entry-card .entry-link .arrow-icon { font-size: 16px; transition: transform 0.2s; }
+        .entry-card:hover .entry-link .arrow-icon { transform: translateX(3px); }
+    </style>
+</head>
+<body>
+
+<!-- ========== 全屏封面 ========== -->
+<div class="intro-screen" id="introScreen">
+    <img src="images/brand-logos.jpg" alt="品牌Logo" class="intro-bg" />
+    <div class="intro-overlay">
+        <div class="intro-title">奶茶品牌图鉴</div>
+        <div class="intro-sub">9 大 品 牌  ·  200 + 产 品  ·  多 维 数 据 洞 察</div>
+    </div>
+    <div class="scroll-hint">
+        <span>向下滑动</span>
+        <div class="arrow"></div>
+    </div>
+</div>
+
+<!-- ========== 主内容区 ========== -->
+<div class="page-wrapper home-main">
+    <div class="page-container">
+
+        <!-- KPI 总览 -->
+        <div class="kpi-row" id="kpiRow">
+            <div class="kpi-card"><span class="kpi-icon">📊</span><div class="kpi-value" id="kpi-total">-</div><div class="kpi-label">收录产品</div></div>
+            <div class="kpi-card"><span class="kpi-icon">🏷️</span><div class="kpi-value" id="kpi-brands">-</div><div class="kpi-label">覆盖品牌</div></div>
+            <div class="kpi-card"><span class="kpi-icon">💰</span><div class="kpi-value" id="kpi-price">-</div><div class="kpi-label">行业均价 <small class="kpi-unit">元/100ml</small></div></div>
+            <div class="kpi-card"><span class="kpi-icon">🔥</span><div class="kpi-value" id="kpi-heat">-</div><div class="kpi-label">行业均热量 <small class="kpi-unit">kcal/100ml</small></div></div>
+        </div>
+
+        <!-- 入口卡片 -->
+        <div class="entry-grid">
+            <a href="dashboard.html" class="entry-card">
+                <span class="entry-icon">📈</span>
+                <div class="entry-title">数据看板</div>
+                <div class="entry-desc">6 张核心图表联动分析，旭日图钻取品牌配方层级，散点图、热力图、箱线图全覆盖</div>
+                <span class="entry-link">进入看板 <span class="arrow-icon">→</span></span>
+            </a>
+
+            <a href="explorer.html" class="entry-card">
+                <span class="entry-icon">🔍</span>
+                <div class="entry-title">产品探索</div>
+                <div class="entry-desc">按品牌、价格、热量、茶底多维度筛选，智能推荐最符合你需要的那一杯</div>
+                <span class="entry-link">开始探索 <span class="arrow-icon">→</span></span>
+            </a>
+
+            <a href="ranking.html" class="entry-card">
+                <span class="entry-icon">🏆</span>
+                <div class="entry-title">排行榜</div>
+                <div class="entry-desc">性价比、最低热量、最大容量、最贵产品等六大维度排行，一目了然</div>
+                <span class="entry-link">查看排行 <span class="arrow-icon">→</span></span>
+            </a>
+
+            <a href="brand.html" class="entry-card">
+                <span class="entry-icon">🏠</span>
+                <div class="entry-title">品牌详情</div>
+                <div class="entry-desc">单品牌深度画像：雷达图、价格分布、热量分布、代表产品全掌握</div>
+                <span class="entry-link">深入了解 <span class="arrow-icon">→</span></span>
+            </a>
+
+            <a href="health.html" class="entry-card">
+                <span class="entry-icon">💚</span>
+                <div class="entry-title">健康指南</div>
+                <div class="entry-desc">健康评分系统，低卡推荐榜单，看懂一杯奶茶的热量到底等于几碗米饭</div>
+                <span class="entry-link">查看指南 <span class="arrow-icon">→</span></span>
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<script type="text/javascript" src="js/data.js"></script>
+<script>var CURRENT_PAGE = 'index';</script>
+<script type="text/javascript" src="js/nav.js"></script>
+<script>
+    // ===== 封面动画 =====
+    (function() {
+        var intro = document.getElementById('introScreen');
+        // 已看过开屏动画则直接跳过
+        if (/[?&]skip=1/.test(location.search) || sessionStorage.getItem('splash_done')) {
+            intro.classList.add('slid-up');
+            return;
+        }
+        var hasSlid = false;
+        function slide() {
+            if (hasSlid) return; hasSlid = true;
+            intro.classList.add('slid-up');
+            sessionStorage.setItem('splash_done', '1');
+        }
+        window.addEventListener('wheel', function(e) {
+            if (!hasSlid && e.deltaY > 30) { e.preventDefault(); slide(); }
+        }, { passive: false });
+        window.addEventListener('keydown', function(e) {
+            if (!hasSlid && (e.key === 'ArrowDown' || e.key === ' ')) { e.preventDefault(); slide(); }
+        });
+        intro.addEventListener('click', function() {
+            if (!hasSlid) { setTimeout(slide, 600); }
+        });
+        // 2.5s 自动播放
+        setTimeout(function() { if (!hasSlid) slide(); }, 4200);
+    })();
+
+    // ===== KPI 数据填充 =====
+    MT.ready(function() {
+        var kpi = MT.KPI();
+        document.getElementById('kpi-total').textContent = kpi.totalProducts;
+        document.getElementById('kpi-brands').textContent = kpi.brandCount;
+        document.getElementById('kpi-price').textContent = kpi.avgUnitPrice;
+        document.getElementById('kpi-heat').textContent = kpi.avgUnitHeat;
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 吸管 -->
+  <path d="M126 104 L140 26 Q141 18 149 19 L170 23 Q178 24 177 32 L164 108 Z" fill="#E2574C" stroke="#221A14" stroke-width="6" stroke-linejoin="round"/>
+  <!-- 杯身 -->
+  <path d="M60 96 L74 192 Q77 206 91 206 L149 206 Q163 206 166 192 L180 96 Z" fill="#C98B5B" stroke="#221A14" stroke-width="6" stroke-linejoin="round"/>
+  <!-- 奶盖 -->
+  <rect x="54" y="76" width="132" height="30" rx="15" fill="#F7EAD2" stroke="#221A14" stroke-width="6"/>
+  <!-- 珍珠 -->
+  <circle cx="92" cy="176" r="12" fill="#3B241C" stroke="#221A14" stroke-width="4"/>
+  <circle cx="120" cy="182" r="12" fill="#3B241C" stroke="#221A14" stroke-width="4"/>
+  <circle cx="148" cy="174" r="12" fill="#3B241C" stroke="#221A14" stroke-width="4"/>
+  <circle cx="106" cy="158" r="12" fill="#3B241C" stroke="#221A14" stroke-width="4"/>
+  <circle cx="134" cy="156" r="12" fill="#3B241C" stroke="#221A14" stroke-width="4"/>
+  <!-- 高光 -->
+  <ellipse cx="82" cy="126" rx="7" ry="15" fill="#FFFFFF" opacity="0.5"/>
+  <circle cx="82" cy="152" r="5" fill="#FFFFFF" opacity="0.5"/>
+</svg>

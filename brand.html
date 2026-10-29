@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>品牌详情 — 奶茶品牌图鉴</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .page-container { max-width: 1500px; }
+        .brand-banner {
+            background: linear-gradient(135deg, rgba(191,160,122,0.2), rgba(61,46,31,0.6));
+            border: 1px solid rgba(191,160,122,0.3); border-radius: var(--card-radius);
+            padding: 28px 32px; margin-bottom: 28px; display: flex; gap: 28px; align-items: center;
+        }
+        .brand-banner .bb-icon { font-size: 48px; flex-shrink: 0; }
+        .brand-banner .bb-info { flex:1; }
+        .brand-banner .bb-info h2 { font-size: 28px; font-weight: bold; color: var(--cream); letter-spacing: 4px; }
+        .brand-banner .bb-info .bb-tags { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .brand-banner .bb-stats { display: flex; gap: 24px; text-align: right; flex-shrink: 0; }
+        .brand-banner .bb-stat { text-align: right; }
+        .brand-banner .bb-stat .val { font-size: 28px; font-weight: bold; color: var(--cream); }
+        .brand-banner .bb-stat .lbl { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+
+        .brand-selector {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
+        }
+        .brand-selector .chip {
+            padding: 6px 16px; border-radius: 20px; font-size: 13px; letter-spacing: 2px;
+            border: 1.5px solid rgba(191,160,122,0.3); color: var(--text-dim);
+            cursor: pointer; transition: all 0.25s; font-weight: bold;
+        }
+        .brand-selector .chip:hover { border-color: var(--gold); color: var(--cream); }
+        .brand-selector .chip.active { background: rgba(191,160,122,0.25); border-color: var(--gold); color: var(--cream); }
+
+        .brand-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .brand-card {
+            background: var(--cream); border-radius: var(--card-radius);
+            padding: 16px; box-shadow: var(--shadow);
+        }
+        .brand-card h3 { color: #5C4033; font-size: 15px; font-weight: bold; margin-bottom: 4px; }
+        .chart-mini { width: 100%; height: 400px; }
+
+        .product-table { margin-top: 28px; overflow-x: auto; }
+        @media (max-width: 768px) { .brand-charts { grid-template-columns: 1fr; } .brand-banner { flex-direction: column; text-align: center; } .brand-banner .bb-stats { justify-content: center; } }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+    <div class="page-container">
+        <div class="breadcrumb"><a href="index.html?skip=1">首页</a><span class="sep">›</span><span>品牌详情</span></div>
+        <div class="page-hero">
+            <h1>品牌深度画像</h1>
+            <p>选择品牌，查看多维分析</p>
+        </div>
+
+        <div class="brand-selector" id="brandSelector"></div>
+
+        <div id="brandContent">
+            <div class="brand-banner" id="banner">
+                <span class="bb-icon"><img src="images/珍珠奶茶.svg" alt="奶茶图标" style="width:1em;height:1em;vertical-align:-0.15em"></span>
+                <div class="bb-info"><h2 id="bannerName">选择品牌</h2><div class="bb-tags" id="bannerTags"></div></div>
+                <div class="bb-stats" id="bannerStats"></div>
+            </div>
+
+            <div class="brand-charts">
+                <div class="brand-card"><h3>品牌定位雷达图</h3><div id="radarChart" class="chart-mini"></div></div>
+                <div class="brand-card"><h3>价格 & 热量分布</h3><div id="distChart" class="chart-mini"></div></div>
+            </div>
+
+            <h3 style="color:var(--gold);letter-spacing:2px;margin-bottom:14px;">产品列表</h3>
+            <div class="product-table">
+                <table class="data-table" id="productTable">
+                    <thead><tr><th>饮品名称</th><th>基底液</th><th>茶底</th><th>顶料</th><th>总价</th><th>容量</th><th>总热量</th><th>单位价格</th><th>单位热量</th><th>小料</th></tr></thead>
+                    <tbody id="productTbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" src="js/echarts.js"></script>
+<script type="text/javascript" src="js/data.js"></script>
+<script>var CURRENT_PAGE = 'brand';</script>
+<script type="text/javascript" src="js/nav.js"></script>
+<script>
+    MT.ready(function(data) {
+        var brands = MT.getBrands();
+        var brandTotals = MT.getBrandTotals();
+        var allBrands = MT.filterValid();
+
+        // 品牌选择器
+        var selectorHTML = '';
+        brands.forEach(function(b, idx) {
+            selectorHTML += '<span class="chip brand-select-chip" data-brand="'+b+'">'+b+'</span>';
+        });
+        document.getElementById('brandSelector').innerHTML = selectorHTML;
+
+        var radarChart = echarts.init(document.getElementById('radarChart'));
+        var distChart = echarts.init(document.getElementById('distChart'));
+
+        // 点击切换品牌
+        var currentBrand = '';
+        document.querySelectorAll('.brand-select-chip').forEach(function(c) {
+            c.addEventListener('click', function() {
+                document.querySelectorAll('.brand-select-chip').forEach(function(x){x.classList.remove('active');});
+                this.classList.add('active');
+                currentBrand = this.dataset.brand;
+                renderBrand(currentBrand);
+            });
+        });
+
+        // 默认选第一个
+        if (brands.length > 0) {
+            document.querySelector('.brand-select-chip').click();
+        }
+
+        function renderBrand(brand) {
+            var bp = allBrands.filter(function(d){return d['品牌']===brand;});
+            var n = bp.length;
+            var avgPrice = n>0?(bp.reduce(function(s,d){return s+d['单位价格 元/100ml'];},0)/n).toFixed(2):'-';
+            var avgHeat = n>0?(bp.reduce(function(s,d){return s+d['单位热量 kcal/100ml'];},0)/n).toFixed(1):'-';
+            var avgSize = n>0?Math.round(bp.reduce(function(s,d){return s+d['容量/ml'];},0)/n):'-';
+            var withTop = bp.filter(function(d){return d['是否含默认小料']==='是';}).length;
+            var teaTypes = {}; bp.forEach(function(d){ teaTypes[(d['茶底类型']||'无茶底').trim()] = (teaTypes[(d['茶底类型']||'无茶底').trim()]||0)+1; });
+            var teaCount = Object.keys(teaTypes).length;
+
+            // Banner
+            document.getElementById('bannerName').textContent = brand;
+            document.getElementById('bannerTags').innerHTML =
+                '<span class="badge badge-brand">'+n+' 款产品</span>'+
+                '<span class="badge badge-brand">'+teaCount+' 种茶底</span>'+
+                '<span class="badge badge-green">均价 ¥'+avgPrice+'/100ml</span>';
+            document.getElementById('bannerStats').innerHTML =
+                '<div class="bb-stat"><div class="val">'+avgSize+'ml</div><div class="lbl">均容量</div></div>'+
+                '<div class="bb-stat"><div class="val">'+avgHeat+'</div><div class="lbl">均热量 kcal</div></div>'+
+                '<div class="bb-stat"><div class="val">'+withTop+'</div><div class="lbl">含小料</div></div>';
+
+            // 雷达图：各品牌相对排名（用全品牌数据算排名百分比）
+            var dims = ['产品丰富度', '价格水平', '热量水平', '茶底多样性', '容量适中度', '小料占比'];
+            var scores = {};
+            // 遍历所有品牌，对每个维度做标准化
+            var allStats = {};
+            brands.forEach(function(b) {
+                var bp2 = allBrands.filter(function(d){return d['品牌']===b;});
+                if(bp2.length===0) return;
+                var tt={}; bp2.forEach(function(d){tt[(d['茶底类型']||'无茶底').trim()]=1;});
+                allStats[b] = {
+                    n: bp2.length,
+                    price: bp2.reduce(function(s,d){return s+d['单位价格 元/100ml'];},0)/bp2.length,
+                    heat: bp2.reduce(function(s,d){return s+d['单位热量 kcal/100ml'];},0)/bp2.length,
+                    size: bp2.reduce(function(s,d){return s+d['容量/ml'];},0)/bp2.length,
+                    teaCount: Object.keys(tt).length,
+                    topRatio: bp2.filter(function(d){return d['是否含默认小料']==='是';}).length/bp2.length
+                };
+            });
+
+            // 每维度的max/min标准化到0-100
+            var maxVals = {};
+            Object.keys(allStats).forEach(function(b){
+                var s=allStats[b];
+                ['n','price','heat','teaCount','size','topRatio'].forEach(function(k){
+                    if(!maxVals[k]) maxVals[k]={max:0,min:Infinity};
+                    if(s[k]>maxVals[k].max) maxVals[k].max=s[k];
+                    if(s[k]<maxVals[k].min) maxVals[k].min=s[k];
+                });
+            });
+
+            function norm(v, k) {
+                if(maxVals[k].max === maxVals[k].min) return 50;
+                return 100 * (v - maxVals[k].min) / (maxVals[k].max - maxVals[k].min);
+            }
+
+            var bStat = allStats[brand];
+            var myScores = bStat ? [
+                { name:'产品丰富度', max:100 },  // 下面实际值
+                { name:'价格水平', max:100 },
+                { name:'热量水平', max:100 },
+                { name:'茶底多样性', max:100 },
+                { name:'容量适中度', max:100 },
+                { name:'小料占比', max:100 }
+            ] : [];
+
+            // 雷达图（绝对分数）+ 所有品牌对比
+            var radarSeries = [];
+            // 加当前品牌
+            if (bStat) {
+                radarSeries.push({
+                    name: brand, type: 'radar',
+                    data: [{
+                        value: [
+                            norm(bStat.n, 'n').toFixed(0),
+                            norm(bStat.price, 'price').toFixed(0),
+                            norm(bStat.heat, 'heat').toFixed(0),
+                            norm(bStat.teaCount, 'teaCount').toFixed(0),
+                            norm(bStat.size, 'size').toFixed(0),
+                            norm(bStat.topRatio, 'topRatio').toFixed(0)
+                        ].map(Number),
+                        name: brand
+                    }],
+                    areaStyle: { opacity: 0.25 },
+                    lineStyle: { color: MT.colorForBrand(brand), width: 2 },
+                    itemStyle: { color: MT.colorForBrand(brand) }
+                });
+            }
+
+            radarChart.setOption({
+                backgroundColor: '#F5EBD2',
+                title: { text: brand+' · 品牌定位', left: 'center', top: 8, textStyle: { color: '#5C4033', fontSize: 15, fontWeight: 'bold' } },
+                legend: { bottom: 10, textStyle: { color: '#5C4033', fontSize: 11 } },
+                radar: {
+                    indicator: dims.map(function(d){return{name:d, max:100};}),
+                    center: ['50%', '52%'], radius: '65%',
+                    axisName: { color: '#5C4033', fontSize: 10, borderRadius: 3, padding: [4, 6] },
+                    splitArea: { areaStyle: { color: ['rgba(210,180,140,0.08)', 'rgba(210,180,140,0.03)'] } },
+                    splitLine: { lineStyle: { color: '#E8D8B8' } },
+                    axisLine: { lineStyle: { color: '#BFA07A' } }
+                },
+                series: radarSeries
+            }, true);
+
+            // 分布图：品牌价格直方图 + 热量直方图（左右子图）
+            var prices = bp.map(function(d){return d['单位价格 元/100ml'] || 0;});
+            var heats = bp.map(function(d){return d['单位热量 kcal/100ml'] || 0;});
+            distChart.setOption({
+                backgroundColor: '#F5EBD2',
+                title: { text: brand+' · 价格 & 热量分布', left: 'center', top: 8, textStyle: { color: '#5C4033', fontSize: 15, fontWeight: 'bold' } },
+                grid: [{ left: 55, right: '52%', top: 80, bottom: 50 }, { left: '52%', right: 30, top: 80, bottom: 50 }],
+                xAxis: [
+                    { type: 'value', name: '单位价格', gridIndex: 0, nameTextStyle: { color: '#5C4033', fontSize: 10 }, axisLabel: { color: '#5C4033', fontSize: 10 }, axisLine: { lineStyle: { color: '#BFA07A' } } },
+                    { type: 'value', name: '单位热量', gridIndex: 1, nameTextStyle: { color: '#5C4033', fontSize: 10 }, axisLabel: { color: '#5C4033', fontSize: 10 }, axisLine: { lineStyle: { color: '#BFA07A' } } }
+                ],
+                yAxis: [
+                    { type: 'value', name: '产品数', gridIndex: 0, nameTextStyle: { color: '#5C4033', fontSize: 10 }, axisLabel: { color: '#5C4033', fontSize: 10 }, splitLine: { lineStyle: { color: '#E8D8B8', type: 'dashed' } } },
+                    { type: 'value', name: '产品数', gridIndex: 1, nameTextStyle: { color: '#5C4033', fontSize: 10 }, axisLabel: { color: '#5C4033', fontSize: 10 }, splitLine: { lineStyle: { color: '#E8D8B8', type: 'dashed' } } }
+                ],
+                series: [
+                    { type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, data: bp.map(function(d){ return [d['单位价格 元/100ml'] || 0, d['单位热量 kcal/100ml'] || 0, d['容量/ml'], d['饮品名称']]; }),
+                        symbolSize: function(v){return Math.max(8, Math.min(30, v[2]/25));},
+                        itemStyle: { color: MT.colorForBrand(brand), opacity: 0.75 }, emphasis: { focus: 'series' } },
+                    { type: 'scatter', xAxisIndex: 1, yAxisIndex: 1, data: bp.map(function(d){ return [d['单位热量 kcal/100ml'] || 0, d['单位价格 元/100ml'] || 0, d['容量/ml'], d['饮品名称']]; }),
+                        symbolSize: function(v){return Math.max(8, Math.min(30, v[2]/25));},
+                        itemStyle: { color: '#A8BFA8', opacity: 0.75 }, emphasis: { focus: 'series' } }
+                ]
+            }, true);
+
+            // 产品表格
+            var tbody = '';
+            bp.sort(function(a,b){return a['单位热量 kcal/100ml']-b['单位热量 kcal/100ml'];}).forEach(function(d){
+                tbody += '<tr>' +
+                    '<td><strong>'+d['饮品名称']+'</strong></td>' +
+                    '<td>'+d['基底液']+'</td><td>'+d['茶底类型']+'</td><td>'+d['顶料']+'</td>' +
+                    '<td>¥'+d['总价/元']+'</td><td>'+d['容量/ml']+'ml</td><td>'+d['总热量/kcal']+' kcal</td>' +
+                    '<td>'+d['单位价格 元/100ml']+'</td><td>'+d['单位热量 kcal/100ml']+'</td>' +
+                    '<td>'+(d['是否含默认小料']==='是'?'<span class="badge badge-red">含小料</span>':'<span class="badge badge-green">无</span>')+'</td>' +
+                '</tr>';
+            });
+            document.getElementById('productTbody').innerHTML = tbody;
+        }
+
+        window.addEventListener('resize', function(){ radarChart.resize(); distChart.resize(); });
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据看板 — 奶茶品牌图鉴</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .page-container { max-width: 1500px; }
+        .dashboard { max-width: 1500px; margin: 0 auto; padding: 12px 16px 60px; }
+        .dashboard .breadcrumb { margin-bottom: 6px; padding-left: 6px; }
+        .section-label {
+            color: var(--cream); font-size: 15px; font-weight: bold;
+            letter-spacing: 3px; margin-bottom: 8px; padding-left: 6px;
+            border-left: 4px solid var(--gold);
+            opacity: 0; transform: translateX(-30px);
+            transition: opacity 0.5s, transform 0.5s cubic-bezier(0.22,1,0.36,1);
+        }
+        .section-label.visible { opacity: 1; transform: translateX(0); }
+
+        .chart-row { display: flex; gap: 20px; margin-bottom: 20px; }
+        .chart-row.dual .chart-card { flex: 0 0 calc(50% - 10px); }
+
+        .chart-card {
+            background: var(--cream); border-radius: var(--card-radius);
+            padding: 10px 10px 6px; box-shadow: var(--shadow);
+            flex: 1; min-width: 0; position: relative;
+            opacity: 0; transform: translateY(50px);
+            transition: opacity 0.7s, transform 0.7s cubic-bezier(0.22,1,0.36,1), box-shadow 0.3s;
+        }
+        .chart-card:hover { box-shadow: var(--shadow-hover); }
+        .chart-card.visible { opacity: 1; transform: translateY(0); }
+        .chart-card.visible:hover { transform: translateY(-2px); }
+
+        .chart-container         { width:100%; height:480px; }
+        .chart-container.tall    { height:540px; }
+        .chart-container.large   { height:820px; }
+        .chart-container.side    { height:500px; }
+
+        .filter-badge {
+            position: fixed; top: 78px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, #5C4033, #8B6B3D);
+            color: var(--cream); padding: 10px 22px; border-radius: 24px;
+            font-size: 14px; font-weight: bold; z-index: 100;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25); letter-spacing: 1px;
+            display: none;
+        }
+        .filter-badge.show {
+            display: block;
+            animation: badgeIn 0.4s cubic-bezier(0.22,1,0.36,1);
+        }
+        .filter-badge .filter-close {
+            cursor: pointer; margin-left: 14px; color: var(--accent);
+            font-weight: bold; padding: 2px 10px; border-radius: 12px;
+            background: rgba(245,235,210,0.15); transition: background 0.2s;
+        }
+        .filter-badge .filter-close:hover { background: rgba(245,235,210,0.35); }
+        @keyframes badgeIn {
+            from { opacity:0; transform:translateX(-50%) translateY(-20px); }
+            to { opacity:1; transform:translateX(-50%) translateY(0); }
+        }
+
+        .conclusion-btn {
+            position: absolute; top: 8px; right: 8px;
+            background: linear-gradient(135deg, #5C4033, #8B6B3D);
+            color: var(--cream); border: none; border-radius: 18px;
+            padding: 5px 12px; font-size: 11px; cursor: pointer; z-index: 15;
+            letter-spacing: 2px; font-weight: bold; transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .conclusion-btn:hover {
+            background: linear-gradient(135deg, #8B6B3D, #D4C4A8);
+            transform: scale(1.05);
+        }
+
+        .conclusion-panel {
+            background: rgba(92,64,51,0.94); color: var(--cream);
+            max-height: 0; opacity: 0; overflow: hidden;
+            padding: 0 16px; pointer-events: none; border-radius: 10px;
+            transition: max-height 0.5s cubic-bezier(0.22,1,0.36,1),
+                        opacity 0.35s, padding 0.35s, margin-top 0.35s;
+        }
+        .conclusion-panel.open {
+            max-height: 300px; opacity: 1; padding: 14px 16px 16px;
+            pointer-events: auto; overflow-y: auto; margin-top: 10px;
+        }
+        .conclusion-panel .panel-header { padding: 0 0 8px; border-bottom: 1px solid rgba(245,235,210,0.2); }
+        .conclusion-panel .panel-header h3 { font-size: 14px; font-weight: bold; letter-spacing: 2px; }
+        .conclusion-panel .panel-body { padding: 12px 0 0; font-size: 13px; line-height: 1.75; }
+        .conclusion-panel .conclusion-item { margin-bottom: 10px; padding-left: 10px; border-left: 3px solid var(--gold); }
+        .conclusion-panel .conclusion-item:last-child { margin-bottom: 0; }
+        .conclusion-panel .conclusion-item .item-title { font-weight: bold; font-size: 13px; }
+        .conclusion-panel .conclusion-item .item-desc { color: rgba(245,235,210,0.72); font-size: 12px; line-height: 1.65; }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+    <div class="page-container">
+        <div class="breadcrumb"><a href="index.html?skip=1">首页</a><span class="sep">›</span><span>数据看板</span></div>
+        <div class="page-hero">
+            <h1>多维数据看板</h1>
+            <p>6 张图表 · 交叉联动 · 钻取下钻 · 结论导出</p>
+        </div>
+
+    <div id="brand-filter-badge" class="filter-badge">
+        <span>已筛选：</span><span id="filter-brand-name"></span>
+        <span class="filter-close" id="filter-close-btn">✕ 清除</span>
+    </div>
+
+    <div class="dashboard">
+        <div class="section-label" id="section1">壹 · 品牌配方层级</div>
+        <div class="chart-row">
+            <div class="chart-card">
+                <button class="conclusion-btn" data-panel="panel1">💡 结论</button>
+                <div id="sunburst" class="chart-container large"></div>
+                <div class="conclusion-panel" id="panel1">
+                    <div class="panel-header"><h3>壹 · 配方层级</h3></div>
+                    <div class="panel-body">
+                        <div class="conclusion-item"><div class="item-title">产品梯度分明</div><div class="item-desc">头部品牌扇区更大，产品线更宽；尾部品牌产品数量有限</div></div>
+                        <div class="conclusion-item"><div class="item-title">基底液以鲜奶/纯茶为主流</div><div class="item-desc">差异化基底液（燕麦奶、豆乳等）占比较小，属差异化配方策略</div></div>
+                        <div class="conclusion-item"><div class="item-title">红茶和绿茶是最通用茶底</div><div class="item-desc">跨品牌通用原料；乌龙茶偏高端品牌集中，体现茶饮专业化定位</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-label" id="section2">贰 · 价格定位与组合热量</div>
+        <div class="chart-row dual">
+            <div class="chart-card">
+                <button class="conclusion-btn" data-panel="panel2">💡 结论</button>
+                <div id="scatter" class="chart-container side"></div>
+                <div class="conclusion-panel" id="panel2">
+                    <div class="panel-header"><h3>贰 · 价格定位</h3></div>
+                    <div class="panel-body">
+                        <div class="conclusion-item"><div class="item-title">价格与热量无强线性相关</div><div class="item-desc">高价≠高热量，定价主要受品牌溢价和原料成本驱动</div></div>
+                        <div class="conclusion-item"><div class="item-title">品牌价格带分层明显</div><div class="item-desc">蜜雪冰城＜2元 → 中价带2~3元 → HEYTEA/奈雪＞3元/100ml</div></div>
+                        <div class="conclusion-item"><div class="item-title">含小料产品略偏右上</div><div class="item-desc">三角形标记整体单位价格和热量均略高，但分布仍有重叠</div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <button class="conclusion-btn" data-panel="panel3">💡 结论</button>
+                <div id="heatmap" class="chart-container side"></div>
+                <div class="conclusion-panel" id="panel3">
+                    <div class="panel-header"><h3>贰 · 组合热量</h3></div>
+                    <div class="panel-body">
+                        <div class="conclusion-item"><div class="item-title">高热量集中于"全脂奶+厚奶盖/芝士"</div><div class="item-desc">该组合是热量密度最高的饮品类型</div></div>
+                        <div class="conclusion-item"><div class="item-title">纯茶+无顶料热量最低</div><div class="item-desc">适合热量控制人群</div></div>
+                        <div class="conclusion-item"><div class="item-title">多数组合样本不足(n＜3)</div><div class="item-desc">虚线框+灰格标注，仅高频组合数据具有统计意义</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-label" id="section3">叁 · 茶底类型占比</div>
+        <div class="chart-row">
+            <div class="chart-card">
+                <button class="conclusion-btn" data-panel="panel4">💡 结论</button>
+                <div id="bar1" class="chart-container"></div>
+                <div class="conclusion-panel" id="panel4">
+                    <div class="panel-header"><h3>叁 · 茶底类型占比</h3></div>
+                    <div class="panel-body">
+                        <div class="conclusion-item"><div class="item-title">平价品牌茶底更单一</div><div class="item-desc">绿茶/红茶主导，标准化程度高，利于成本控制</div></div>
+                        <div class="conclusion-item"><div class="item-title">高端品牌茶底更多元</div><div class="item-desc">乌龙茶、花茶、抹茶占比更高，体现"茶饮专业化"定位</div></div>
+                        <div class="conclusion-item"><div class="item-title">绿茶+红茶是全品牌通用底层</div><div class="item-desc">几乎所有品牌都有相当比例的绿茶和红茶产品</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-label" id="section4">肆 · 价格与热量分布</div>
+        <div class="chart-row">
+            <div class="chart-card">
+                <button class="conclusion-btn" data-panel="panel5">💡 结论</button>
+                <div id="boxplot" class="chart-container tall"></div>
+                <div class="conclusion-panel" id="panel5">
+                    <div class="panel-header"><h3>肆 · 价格与热量分布</h3></div>
+                    <div class="panel-body">
+                        <div class="conclusion-item"><div class="item-title">价格离散度：高端＞平价</div><div class="item-desc">HEYTEA等IQR更大，产品定价差异化明显</div></div>
+                        <div class="conclusion-item"><div class="item-title">热量中位数各品牌差异不大</div><div class="item-desc">集中在40~60 kcal/100ml区间</div></div>
+                        <div class="conclusion-item"><div class="item-title">价格异常值多出现在高端品牌</div><div class="item-desc">对应季节限定款；n＜5以散点替代箱体</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-label" id="section5">伍 · 小料影响分析</div>
+        <div class="chart-row">
+            <div class="chart-card">
+                <button class="conclusion-btn" data-panel="panel6">💡 结论</button>
+                <div id="compare" class="chart-container tall"></div>
+                <div class="conclusion-panel" id="panel6">
+                    <div class="panel-header"><h3>伍 · 小料影响分析</h3></div>
+                    <div class="panel-body">
+                        <div class="conclusion-item"><div class="item-title">含小料产品均价系统性偏高</div><div class="item-desc">差异幅度约0.3~0.8元/100ml</div></div>
+                        <div class="conclusion-item"><div class="item-title">含小料热量显著更高</div><div class="item-desc">普遍高5~15 kcal/100ml</div></div>
+                        <div class="conclusion-item"><div class="item-title">小料价格溢价＞热量增幅</div><div class="item-desc">小料对价格的拉升比例高于对热量的拉升</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+
+<script type="text/javascript" src="js/echarts.js"></script>
+<script type="text/javascript" src="js/data.js"></script>
+<script>var CURRENT_PAGE = 'dashboard';</script>
+<script type="text/javascript" src="js/nav.js"></script>
+
+<script>
+// ===== 滚动动画 =====
+(function() {
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                var delay = entry.target.style.transitionDelay || '0s';
+                setTimeout(function() {
+                    entry.target.classList.add('visible');
+                }, parseFloat(delay) * 1000 + 80);
+            }
+        });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.chart-card, .section-label').forEach(function(el) { observer.observe(el); });
+})();
+
+// ===== 结论面板 =====
+(function(){
+    document.querySelectorAll('.conclusion-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var panel = document.getElementById(btn.getAttribute('data-panel'));
+            if (!panel) return;
+            if (panel.classList.contains('open')) {
+                panel.classList.remove('open');
+            } else {
+                document.querySelectorAll('.conclusion-panel.open').forEach(function(p) { p.classList.remove('open'); });
+                panel.classList.add('open');
+            }
+        });
+    });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.conclusion-panel') && !e.target.closest('.conclusion-btn')) {
+            document.querySelectorAll('.conclusion-panel.open').forEach(function(p) { p.classList.remove('open'); });
+        }
+    });
+})();
+
+// ===== 图表渲染 =====
+MT.ready(function(data) {
+    var brandPalette = MT.brandPalette;
+    var teaColorMap = MT.teaColorMap;
+    var brands = MT.getBrands();
+    var brandTotals = MT.getBrandTotals();
+    var totalProducts = data.length;
+
+    // 颜色工具
+    function lightenColor(hex, amount) {
+        var r = Math.min(255, parseInt(hex.substring(1,3),16) + amount);
+        var g = Math.min(255, parseInt(hex.substring(3,5),16) + amount);
+        var b = Math.min(255, parseInt(hex.substring(5,7),16) + amount);
+        return '#' + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+    }
+
+    // ===== Chart1: 旭日图 =====
+    var chart1 = echarts.init(document.getElementById('sunburst'));
+    var brandCounts = {};
+    data.forEach(function(d) { brandCounts[d['品牌']] = (brandCounts[d['品牌']]||0)+1; });
+
+    var sunburstChildren = brands.map(function(brand, idx) {
+        var bc = brandPalette[idx % brandPalette.length];
+        var bp = data.filter(function(d) { return d['品牌']===brand; });
+        var baseMap = {};
+        bp.forEach(function(d) {
+            var base = (d['基底液']||'无基底').trim();
+            var tea = (d['茶底类型']||'无茶底').trim();
+            if (!baseMap[base]) baseMap[base] = {};
+            if (!baseMap[base][tea]) baseMap[base][tea] = 0;
+            baseMap[base][tea]++;
+        });
+        var baseChildren = Object.keys(baseMap).map(function(base) {
+            var bTotal = Object.values(baseMap[base]).reduce(function(a,b){return a+b;},0);
+            var teaChildren = Object.keys(baseMap[base]).map(function(tea) {
+                return { name:tea, value:baseMap[base][tea], itemStyle:{color:teaColorMap[tea]||'#B8B8A8',borderWidth:2,borderColor:'#F5EBD2'}, label:{show:true,color:'#5C4033',fontSize:7} };
+            });
+            return { name:base, value:bTotal, children:teaChildren, itemStyle:{color:lightenColor(bc,40),opacity:0.65,borderWidth:2,borderColor:'#F5EBD2'}, label:{show:true,color:'#6B4F3A',fontSize:9} };
+        });
+        return { name:brand, children:baseChildren, itemStyle:{color:bc,borderWidth:2,borderColor:'#F5EBD2'}, label:{color:'#FFF',fontWeight:'bold',fontSize:10,textShadowColor:'rgba(0,0,0,0.4)',textShadowBlur:2} };
+    });
+
+    var opt1 = {
+        backgroundColor:'#F5EBD2',
+        title:{text:'品牌-基底液-茶底层级图',subtext:'内环=品牌  |  中环=基底液  |  外环=茶底类型',left:'center',top:18,textStyle:{color:'#5C4033',fontSize:16,fontWeight:'bold'},subtextStyle:{color:'#8B7355',fontSize:10}},
+        tooltip:{backgroundColor:'rgba(255,255,255,0.95)',borderColor:'#D4C4A8',textStyle:{color:'#3D3027'},formatter:function(info){
+            var path=info.treePathInfo, names=[];
+            for(var i=1;i<path.length;i++) names.push(path[i].name);
+            return '<div style="padding:7px 13px"><strong>'+names.join(' › ')+'</strong><br/>产品:'+info.value+' 款 | 占比:'+((info.value/totalProducts)*100).toFixed(1)+'%</div>';
+        }},
+        series:[{type:'sunburst',data:sunburstChildren,radius:['10%','90%'],center:['50%','55%'],sort:null,emphasis:{focus:'ancestor'},itemStyle:{borderWidth:2,borderColor:'#F5EBD2',borderRadius:3},
+            levels:[{label:{rotate:'tangential',fontSize:10}},{label:{rotate:'tangential',fontSize:9}},{label:{rotate:'radial',fontSize:7,minAngle:5}}]}]
+    };
+    chart1.setOption(opt1);
+
+    // 保存原始标题
+    var origTitles = {
+        chart1: '品牌-基底液-茶底层级图',
+        chart1sub: '内环=品牌产品占比  |  中环=基底液  |  外环=茶底类型',
+        chart3: '基底液 × 顶料 热力图',
+        chart4: '品牌 × 茶底类型 堆叠柱状图',
+        chart5: '品牌单位价格 & 单位热量 箱线图',
+        chart6: '小料影响对比分析（按品牌）'
+    };
+
+    // ===== Chart2: 散点图 =====
+    var chart2 = echarts.init(document.getElementById('scatter'));
+    var scatterData = MT.filterValid();
+    var brandGroups = {};
+    scatterData.forEach(function(d) {
+        var b = d['品牌'];
+        if(!brandGroups[b]) brandGroups[b] = [];
+        brandGroups[b].push(d);
+    });
+    var sSeries = Object.keys(brandGroups).map(function(brand, idx) {
+        var bc = brandPalette[idx % brandPalette.length];
+        return {
+            name:brand, type:'scatter',
+            data: brandGroups[brand].map(function(d) {
+                var has = d['是否含默认小料']==='是';
+                return { value:[d['单位价格 元/100ml'],d['单位热量 kcal/100ml'],d['容量/ml'],d['饮品名称'],d['总价/元'],d['总热量/kcal']],
+                    symbolSize: Math.max(6,Math.min(28,d['容量/ml']/25)), symbol:has?'triangle':'circle', itemStyle:{color:bc,opacity:0.75} };
+            }),
+            itemStyle:{color:bc,opacity:0.78,borderWidth:1,borderColor:'rgba(255,255,255,0.7)'}
+        };
+    });
+    chart2.setOption({
+        backgroundColor:'#F5EBD2',
+        title:{text:'价格-热量战略散点图',subtext:'X=单位价格 元/100ml  |  Y=单位热量 kcal/100ml  |  气泡=容量  |  ▲含小料',left:'center',top:8,textStyle:{color:'#5C4033',fontSize:17,fontWeight:'bold'},subtextStyle:{color:'#8B7355',fontSize:11}},
+        tooltip:{backgroundColor:'rgba(255,255,255,0.96)',borderColor:'#D4C4A8',textStyle:{color:'#3D3027'},formatter:function(p){
+            var v=p.value; return '<div style="padding:7px 13px"><strong>'+v[3]+'</strong><br/>品牌:'+p.seriesName+'<br/>单位价格:'+v[0].toFixed(2)+' 元/100ml<br/>单位热量:'+v[1].toFixed(2)+' kcal/100ml<br/>容量:'+v[2]+'ml<br/>总价:¥'+v[4]+' | 总热量:'+v[5]+' kcal</div>';
+        }},
+        legend:{type:'scroll',bottom:10,textStyle:{color:'#5C4033',fontSize:11}},
+        grid:{left:65,right:50,top:90,bottom:80},
+        xAxis:{name:'单位价格（元/100ml）',nameLocation:'middle',nameGap:28,nameTextStyle:{color:'#5C4033',fontSize:13,fontWeight:'bold'},type:'value',axisLine:{lineStyle:{color:'#BFA07A'}},axisLabel:{color:'#5C4033'},splitLine:{lineStyle:{color:'#E8D8B8',type:'dashed'}}},
+        yAxis:{name:'单位热量（kcal/100ml）',nameLocation:'middle',nameGap:38,nameTextStyle:{color:'#5C4033',fontSize:13,fontWeight:'bold'},type:'value',axisLine:{lineStyle:{color:'#BFA07A'}},axisLabel:{color:'#5C4033'},splitLine:{lineStyle:{color:'#E8D8B8',type:'dashed'}}},
+        series:sSeries
+    });
+
+    // ===== Chart3: 热力图 =====
+    var chart3 = echarts.init(document.getElementById('heatmap'));
+    var baseSet={}, toppingSet={};
+    data.forEach(function(d){ baseSet[(d['基底液']||'无基底').trim()]=true; toppingSet[(d['顶料']||'无顶料').trim()]=true; });
+    var baseList=Object.keys(baseSet), toppingList=Object.keys(toppingSet);
+    var N_THR = 3;
+
+    function buildHeatmapData(filteredData) {
+        var hAgg = {};
+        filteredData.forEach(function(d){
+            var base=(d['基底液']||'无基底').trim(), top=(d['顶料']||'无顶料').trim();
+            if(d['单位热量 kcal/100ml']==='#DIV/0!'||typeof d['单位热量 kcal/100ml']!=='number') return;
+            if(!hAgg[base]) hAgg[base]={};
+            if(!hAgg[base][top]) hAgg[base][top]={sumHeat:0,count:0};
+            hAgg[base][top].sumHeat+=d['单位热量 kcal/100ml'];
+            hAgg[base][top].count++;
+        });
+        var hd=[];
+        baseList.forEach(function(base,y){ toppingList.forEach(function(top,x){
+            var c=hAgg[base]&&hAgg[base][top];
+            var avg=c?parseFloat((c.sumHeat/c.count).toFixed(1)):0, cnt=c?c.count:0;
+            var is;
+            if(cnt===0) is={color:'rgba(245,235,210,0.15)',borderWidth:0};
+            else if(cnt<N_THR) is={color:'#D4CCC0',borderWidth:2,borderColor:'#A09888',borderType:'dashed'};
+            else is={borderWidth:1,borderColor:'rgba(255,255,255,0.5)'};
+            hd.push({value:[x,y,avg,cnt],itemStyle:is});
+        });});
+        return hd;
+    }
+
+    var heatmapData = buildHeatmapData(data);
+    var opt3 = {
+        backgroundColor:'#F5EBD2',
+        title:{text:'基底液 × 顶料 热力图',subtext:'颜色=平均单位热量  |  数字=产品数量(n)  |  虚线框=n<3',left:'center',top:8,textStyle:{color:'#5C4033',fontSize:17,fontWeight:'bold'},subtextStyle:{color:'#8B7355',fontSize:11}},
+        tooltip:{backgroundColor:'rgba(255,255,255,0.96)',borderColor:'#D4C4A8',formatter:function(p){
+            var v=p.value,warn=v[3]>0&&v[3]<N_THR?'<br/><span style="color:#C97B7B;font-weight:bold">⚠ 样本不足</span>':'';
+            return '<div style="padding:7px 13px"><strong>'+toppingList[v[0]]+' + '+baseList[v[1]]+'</strong><br/>平均热量:'+v[2]+' kcal/100ml<br/>产品数:n='+v[3]+warn+'</div>';
+        }},
+        grid:{left:140,right:80,top:90,bottom:60},
+        xAxis:{type:'category',data:toppingList,axisLabel:{color:'#5C4033',fontSize:11},axisLine:{lineStyle:{color:'#BFA07A'}}},
+        yAxis:{type:'category',data:baseList,axisLabel:{color:'#5C4033',fontSize:12},axisLine:{lineStyle:{color:'#BFA07A'}}},
+        visualMap:{min:20,max:90,calculable:true,orient:'vertical',right:10,top:80,itemWidth:15,itemHeight:140,inRange:{color:['#C4A77D','#DAB89A','#C19A6B','#A67C52','#8B6B3D','#6B4F3A','#4A3628']},textStyle:{color:'#5C4033'}},
+        series:[{name:'基底液×顶料',type:'heatmap',data:heatmapData,label:{show:true,formatter:function(p){var c=p.value[3];if(c===0)return'';if(c<N_THR)return'n='+c;return c;},color:'#3D2E1F',fontSize:11,fontWeight:'bold'}}]
+    };
+    chart3.setOption(opt3);
+
+    // ===== Chart4: 堆叠柱状图 =====
+    var chart4 = echarts.init(document.getElementById('bar1'));
+    var teaTypes=['绿茶','红茶','乌龙茶','抹茶','花茶,抹茶','黑茶','其他','无茶底'];
+    var brandTeaMap={}; brands.forEach(function(b){ brandTeaMap[b]={}; teaTypes.forEach(function(t){brandTeaMap[b][t]=0;}); });
+    data.forEach(function(d){var b=d['品牌'],t=(d['茶底类型']||'无茶底').trim(); if(brandTeaMap[b]&&brandTeaMap[b][t]!==undefined)brandTeaMap[b][t]++;else if(brandTeaMap[b])brandTeaMap[b]['其他']++;});
+    var bTotal={}; brands.forEach(function(b){bTotal[b]=teaTypes.reduce(function(s,t){return s+brandTeaMap[b][t];},0);});
+    var sortedBrands = brands.slice().sort(function(a,b){return bTotal[b]-bTotal[a];});
+    var barSeries = teaTypes.map(function(tea,idx){
+        return {name:tea,type:'bar',stack:'total',data:sortedBrands.map(function(b){var pct=bTotal[b]>0?((brandTeaMap[b][tea]/bTotal[b])*100).toFixed(1):0; return {value:parseFloat(pct),realCount:brandTeaMap[b][tea]};}),itemStyle:{color:teaColorMap[tea]||brandPalette[idx%brandPalette.length]}};
+    });
+    chart4.setOption({
+        backgroundColor:'#F5EBD2',
+        title:{text:'品牌 × 茶底类型 堆叠柱状图',subtext:'柱高=100%占比  |  按产品数降序',left:'center',top:8,textStyle:{color:'#5C4033',fontSize:17,fontWeight:'bold'},subtextStyle:{color:'#8B7355',fontSize:11}},
+        tooltip:{backgroundColor:'rgba(255,255,255,0.96)',borderColor:'#D4C4A8',formatter:function(p){if(p.seriesName==='n值标注')return'';var bn=p.name,n=bTotal[bn];return '<div style="padding:7px 13px"><strong>'+bn+'（n='+n+'款）</strong><br/>茶底:'+p.seriesName+'<br/>占比:'+p.value+'%<br/>数量:'+p.data.realCount+' 款</div>';}},
+        legend:{type:'scroll',bottom:10,textStyle:{color:'#5C4033',fontSize:11}},
+        grid:{left:65,right:40,top:90,bottom:80},
+        xAxis:{type:'category',data:sortedBrands,axisLabel:{color:'#5C4033',fontSize:11,formatter:function(v){var n=bTotal[v];return '{name|'+v+'}\n{n|n='+n+'}';},rich:{name:{color:'#5C4033',fontSize:11,lineHeight:18,align:'center'},n:{color:'#8B6355',fontSize:10,lineHeight:16,align:'center',padding:[2,0]}}},axisLine:{lineStyle:{color:'#BFA07A'}}},
+        yAxis:{type:'value',name:'占比 (%)',max:100,nameTextStyle:{color:'#5C4033',fontSize:13,fontWeight:'bold'},axisLine:{lineStyle:{color:'#BFA07A'}},axisLabel:{color:'#5C4033',formatter:'{value}%'},splitLine:{lineStyle:{color:'#E8D8B8',type:'dashed'}}},
+        series:barSeries.concat([{name:'n值标注',type:'bar',stack:'total',data:sortedBrands.map(function(){return{value:0};}),itemStyle:{color:'transparent'},tooltip:{show:false}}])
+    });
+
+    // ===== Chart5: 箱线图 =====
+    var chart5 = echarts.init(document.getElementById('boxplot'));
+    var N_THR_BOX = 5;
+    function calcBox(arr) {
+        if(!arr||arr.length===0) return {five:null,n:0,outliers:[],raw:[]};
+        var s=arr.slice().sort(function(a,b){return a-b;}), n=s.length;
+        if(n<N_THR_BOX) return {five:null,n:n,outliers:[],raw:s.map(function(v){return parseFloat(v.toFixed(2));})};
+        function pct(p){var idx=(n-1)*p,lo=Math.floor(idx),hi=Math.ceil(idx);return lo===hi?s[lo]:s[lo]*(hi-idx)+s[hi]*(idx-lo);}
+        var q1=pct(0.25), med=pct(0.5), q3=pct(0.75), iqr=q3-q1, lf=q1-1.5*iqr, uf=q3+1.5*iqr;
+        var bmin=s[0],bmax=s[n-1];
+        for(var i=0;i<n;i++){if(s[i]>=lf){bmin=s[i];break;}}
+        for(var j=n-1;j>=0;j--){if(s[j]<=uf){bmax=s[j];break;}}
+        var ol=[]; s.forEach(function(v){if(v<lf||v>uf) ol.push(parseFloat(v.toFixed(2)));});
+        return {five:[parseFloat(bmin.toFixed(2)),parseFloat(q1.toFixed(2)),parseFloat(med.toFixed(2)),parseFloat(q3.toFixed(2)),parseFloat(bmax.toFixed(2))],n:n,outliers:ol,raw:s.map(function(v){return parseFloat(v.toFixed(2));}),Q1:parseFloat(q1.toFixed(2)),median:parseFloat(med.toFixed(2)),Q3:parseFloat(q3.toFixed(2))};
+    }
+    var pStat=[], hStat=[];
+    brands.forEach(function(b){
+        var prices=data.filter(function(d){return d['品牌']===b&&d['单位价格 元/100ml']!=='#DIV/0!'&&typeof d['单位价格 元/100ml']==='number';}).map(function(d){return d['单位价格 元/100ml'];});
+        var heats=data.filter(function(d){return d['品牌']===b&&d['单位热量 kcal/100ml']!=='#DIV/0!'&&typeof d['单位热量 kcal/100ml']==='number'&&d['单位热量 kcal/100ml']>0;}).map(function(d){return d['单位热量 kcal/100ml'];});
+        pStat.push(calcBox(prices)); hStat.push(calcBox(heats));
+    });
+    var boxP=[], boxH=[], pOut=[], hOut=[], pScat=[], hScat=[];
+    brands.forEach(function(b,idx){
+        if(pStat[idx].n>=N_THR_BOX){ boxP.push(pStat[idx].five); pStat[idx].outliers.forEach(function(v){pOut.push({value:[idx,v]});}); }
+        else { boxP.push('-'); pStat[idx].raw.forEach(function(v){pScat.push({value:[idx,v]});}); }
+        if(hStat[idx].n>=N_THR_BOX){ boxH.push(hStat[idx].five); hStat[idx].outliers.forEach(function(v){hOut.push({value:[idx,v]});}); }
+        else { boxH.push('-'); hStat[idx].raw.forEach(function(v){hScat.push({value:[idx,v]});}); }
+    });
+    chart5.setOption({
+        backgroundColor:'#F5EBD2',
+        title:{text:'品牌单位价格 & 单位热量 箱线图',subtext:'A=单位价格(元/100ml)  |  B=单位热量(kcal/100ml)  |  散点=n<5',left:'center',top:10,textStyle:{color:'#5C4033',fontSize:17,fontWeight:'bold'},subtextStyle:{color:'#8B7355',fontSize:11}},
+        tooltip:{backgroundColor:'rgba(255,255,255,0.96)',borderColor:'#D4C4A8',formatter:function(p){
+            if(p.seriesType==='boxplot'){var v=p.value,bi=p.dataIndex,n=pStat[bi]?pStat[bi].n:hStat[bi].n;return '<div style="padding:7px 13px"><strong>'+p.name+'（n='+n+'）</strong><br/>须线上端:'+v[5]+'<br/>Q3:'+v[4]+'<br/>中位数:'+v[3]+'<br/>Q1:'+v[2]+'<br/>须线下端:'+v[1]+'</div>';}
+            return '<div style="padding:7px 13px"><strong>'+brands[p.value[0]]+'</strong><br/>值:'+p.value[1]+'</div>';
+        }},
+        grid:[{left:65,right:'52%',top:100,bottom:60},{left:'52%',right:40,top:100,bottom:60}],
+        xAxis:[
+            {type:'category',data:brands,gridIndex:0,axisLabel:{color:'#5C4033',fontSize:10,formatter:function(v){var i=brands.indexOf(v),n=pStat[i]?pStat[i].n:0;return'{name|'+v+'}\n{n|n='+n+'}';},rich:{name:{color:'#5C4033',fontSize:10,lineHeight:14,align:'center'},n:{color:'#8B6355',fontSize:9,lineHeight:12,align:'center'}}},axisLine:{lineStyle:{color:'#BFA07A'}}},
+            {type:'category',data:brands,gridIndex:1,axisLabel:{color:'#5C4033',fontSize:10,formatter:function(v){var i=brands.indexOf(v),n=hStat[i]?hStat[i].n:0;return'{name|'+v+'}\n{n|n='+n+'}';},rich:{name:{color:'#5C4033',fontSize:10,lineHeight:14,align:'center'},n:{color:'#8B6355',fontSize:9,lineHeight:12,align:'center'}}},axisLine:{lineStyle:{color:'#BFA07A'}}}
+        ],
+        yAxis:[
+            {type:'value',name:'单位价格\n(元/100ml)',gridIndex:0,nameTextStyle:{color:'#5C4033',fontSize:11,fontWeight:'bold'},axisLine:{lineStyle:{color:'#BFA07A'}},axisLabel:{color:'#5C4033'},splitLine:{lineStyle:{color:'#E8D8B8',type:'dashed'}}},
+            {type:'value',name:'单位热量\n(kcal/100ml)',gridIndex:1,min:0,nameTextStyle:{color:'#5C4033',fontSize:11,fontWeight:'bold'},axisLine:{lineStyle:{color:'#BFA07A'}},axisLabel:{color:'#5C4033'},splitLine:{lineStyle:{color:'#E8D8B8',type:'dashed'}}}
+        ],
+        series:[
+            {name:'单位价格',type:'boxplot',data:boxP,xAxisIndex:0,yAxisIndex:0,itemStyle:{color:'#D2B48C',borderColor:'#8B6B3D',borderWidth:2},boxWidth:28},
+            {name:'价格异常值',type:'scatter',data:pOut,xAxisIndex:0,yAxisIndex:0,symbolSize:6,itemStyle:{color:'#C97B7B',opacity:0.7}},
+            {name:'价格散点(n<5)',type:'scatter',data:pScat,xAxisIndex:0,yAxisIndex:0,symbolSize:8,itemStyle:{color:'#D4C4A8',borderColor:'#8B6B3D',borderWidth:1.5}},
+            {name:'单位热量',type:'boxplot',data:boxH,xAxisIndex:1,yAxisIndex:1,itemStyle:{color:'#A8BFA8',borderColor:'#6B8F6B',borderWidth:2},boxWidth:28},
+            {name:'热量异常值',type:'scatter',data:hOut,xAxisIndex:1,yAxisIndex:1,symbolSize:6,itemStyle:{color:'#C97B7B',opacity:0.7}},
+            {name:'热量散点(n<5)',type:'scatter',data:hScat,xAxisIndex:1,yAxisIndex:1,symbolSize:8,itemStyle:{color:'#D4C4A8',borderColor:'#6B8F6B',borderWidth:1.5}}
+        ]
+    });
+
+    // ===== Chart6: 小料对比 =====
+    var chart6 = echarts.init(document.getElementById('compare'));
+    var N_THR_TOP = 5;
+    var topMap = {}; brands.forEach(function(b){topMap[b]={with:{pS:0,hS:0,c:0},without:{pS:0,hS:0,c:0}};});
+    var oW={pS:0,hS:0,c:0}, oWo={pS:0,hS:0,c:0};
+    data.forEach(function(d){
+        if(d['单位价格 元/100ml']==='#DIV/0!'||typeof d['单位价格 元/100ml']!=='number')return;
+        if(d['单位热量 kcal/100ml']==='#DIV/0!'||typeof d['单位热量 kcal/100ml']!=='number'||d['单位热量 kcal/100ml']<=0)return;
+        var b=d['品牌'], has=d['是否含默认小料']==='是';
+        if(brandTotals[b]<N_THR_TOP){ var t=has?oW:oWo; t.pS+=d['单位价格 元/100ml']; t.hS+=d['单位热量 kcal/100ml']; t.c++; }
+        else if(topMap[b]){ var t=has?topMap[b].with:topMap[b].without; t.pS+=d['单位价格 元/100ml']; t.hS+=d['单位热量 kcal/100ml']; t.c++; }
+    });
+    var topBrands = brands.filter(function(b){return brandTotals[b]>=N_THR_TOP;}).sort(function(a,b){return brandTotals[b]-brandTotals[a];});
+    var hasOther = (oW.c+oWo.c)>0;
+    var c6Brands = hasOther ? topBrands.concat(['其他品牌']) : topBrands;
+    var pwD=[], pwoD=[], hwD=[], hwoD=[];
+    c6Brands.forEach(function(b){
+        var sW=b==='其他品牌'?oW:topMap[b].with, sWo=b==='其他品牌'?oWo:topMap[b].without;
+        function mk(v,n){return{value:v,n:n,label:{show:true,position:'top',formatter:v>0?'{val|'+v+'}\n{n|n='+n+'}':'',rich:{val:{color:'#5C4033',fontSize:11,fontWeight:'bold',lineHeight:16,align:'center'},n:{color:'#8B6355',fontSize:9,lineHeight:13,align:'center'}}}};}
+        pwD.push(mk(sW.c>0?parseFloat((sW.pS/sW.c).toFixed(2)):0, sW.c));
+        pwoD.push(mk(sWo.c>0?parseFloat((sWo.pS/sWo.c).toFixed(2)):0, sWo.c));
+        hwD.push(mk(sW.c>0?parseFloat((sW.hS/sW.c).toFixed(2)):0, sW.c));
+        hwoD.push(mk(sWo.c>0?parseFloat((sWo.hS/sWo.c).toFixed(2)):0, sWo.c));
+    });
+    chart6.setOption({
+        backgroundColor:'#F5EBD2',
+        title:{text:'小料影响对比分析（按品牌）',subtext:'A=平均单位价格  |  B=平均单位热量  |  ■含小料  □不含小料',left:'center',top:8,textStyle:{color:'#5C4033',fontSize:17,fontWeight:'bold'},subtextStyle:{color:'#8B7355',fontSize:11}},
+        tooltip:{backgroundColor:'rgba(255,255,255,0.96)',borderColor:'#D4C4A8',formatter:function(p){return'<div style="padding:7px 13px"><strong>'+p.name+' - '+p.seriesName+'</strong><br/>平均值:'+p.value+'<br/>样本量:n='+(p.data.n||0)+'</div>';}},
+        legend:{bottom:10,textStyle:{color:'#5C4033',fontSize:12}},
+        grid:[{left:65,right:'52%',top:100,bottom:70},{left:'52%',right:40,top:100,bottom:70}],
+        xAxis:[{type:'category',data:c6Brands,gridIndex:0,axisLabel:{color:'#5C4033',fontSize:10},axisLine:{lineStyle:{color:'#BFA07A'}}},{type:'category',data:c6Brands,gridIndex:1,axisLabel:{color:'#5C4033',fontSize:10},axisLine:{lineStyle:{color:'#BFA07A'}}}],
+        yAxis:[{type:'value',name:'平均单位价格\n(元/100ml)',gridIndex:0,nameTextStyle:{color:'#5C4033',fontSize:11,fontWeight:'bold'},axisLine:{lineStyle:{color:'#BFA07A'}},axisLabel:{color:'#5C4033'},splitLine:{lineStyle:{color:'#E8D8B8',type:'dashed'}}},{type:'value',name:'平均单位热量\n(kcal/100ml)',gridIndex:1,nameTextStyle:{color:'#5C4033',fontSize:11,fontWeight:'bold'},axisLine:{lineStyle:{color:'#BFA07A'}},axisLabel:{color:'#5C4033'},splitLine:{lineStyle:{color:'#E8D8B8',type:'dashed'}}}],
+        series:[
+            {name:'含小料',type:'bar',xAxisIndex:0,yAxisIndex:0,data:pwD,itemStyle:{color:'#C97B7B',borderRadius:[4,4,0,0]},barGap:'20%'},
+            {name:'不含小料',type:'bar',xAxisIndex:0,yAxisIndex:0,data:pwoD,itemStyle:{color:'#A8BFA8',borderRadius:[4,4,0,0]}},
+            {name:'含小料',type:'bar',xAxisIndex:1,yAxisIndex:1,data:hwD,itemStyle:{color:'#C97B7B',borderRadius:[4,4,0,0]},barGap:'20%'},
+            {name:'不含小料',type:'bar',xAxisIndex:1,yAxisIndex:1,data:hwoD,itemStyle:{color:'#A8BFA8',borderRadius:[4,4,0,0]}}
+        ]
+    });
+
+    // ===== 旭日图钻取联动 =====
+    var drillStack = [];
+
+    function rebuildSunburst() {
+        var dLen=drillStack.length, newData, newTitle, newSub, newRadius;
+        if(dLen===0){ newData=sunburstChildren; newTitle=origTitles.chart1; newSub=origTitles.chart1sub; newRadius=['10%','90%']; }
+        else if(dLen===1){
+            var bn=drillStack[0].name;
+            var nd=sunburstChildren.find(function(n){return n.name===bn;});
+            newData=[JSON.parse(JSON.stringify(nd))]; newTitle=bn; newSub='中环=基底液 | 外环=茶底类型'; newRadius=['15%','88%'];
+        } else if(dLen===2){
+            var bn2=drillStack[0].name, baseN=drillStack[1].name;
+            var nd2=sunburstChildren.find(function(n){return n.name===bn2;});
+            var baseNd=nd2.children.find(function(n){return n.name===baseN;});
+            newData=[{name:baseN,children:baseNd.children.map(function(t){return{name:t.name,value:t.value,itemStyle:t.itemStyle,label:t.label};}),itemStyle:{color:brandPalette[brands.indexOf(bn2)%brandPalette.length],borderWidth:2,borderColor:'#F5EBD2'},label:{color:'#FFF',fontWeight:'bold',fontSize:14}}];
+            newTitle=bn2+' › '+baseN; newSub='外环=茶底类型'; newRadius=['22%','86%'];
+        } else if(dLen===3){
+            var bn3=drillStack[0].name, baseN3=drillStack[1].name, teaN=drillStack[2].name;
+            var nd3=sunburstChildren.find(function(n){return n.name===bn3;}),baseNd3=nd3.children.find(function(n){return n.name===baseN3;}),teaNd=baseNd3.children.find(function(n){return n.name===teaN;});
+            var tv=teaNd?teaNd.value:0;
+            newData=[{name:teaN,value:tv,itemStyle:{color:teaColorMap[teaN]||'#B8B8A8',borderWidth:2,borderColor:'#F5EBD2'},label:{color:'#5C4033',fontWeight:'bold',fontSize:16}}];
+            newTitle=bn3+' › '+baseN3+' › '+teaN; newSub='共'+tv+' 款产品 | 已钻取至最深层'; newRadius=['30%','84%'];
+        }
+        chart1.setOption({title:{text:newTitle,subtext:newSub},series:[{data:newData,radius:newRadius}]});
+    }
+
+    function updateBadge() {
+        var badge=document.getElementById('brand-filter-badge'), nameSpan=document.getElementById('filter-brand-name'), closeSpan=document.getElementById('filter-close-btn');
+        if(drillStack.length===0){ badge.classList.remove('show'); }
+        else {
+            nameSpan.textContent=drillStack.map(function(d){return d.name;}).join(' › ');
+            closeSpan.innerHTML=drillStack.length>1?'↩ 返回上一级 <span style="margin-left:8px;opacity:0.6">|</span> ✕ 全部清除':'✕ 清除';
+            badge.classList.add('show');
+        }
+    }
+
+    function applyBrandFilter(bn) {
+        Object.keys(brandGroups).forEach(function(b){ if(b===bn) chart2.dispatchAction({type:'legendSelect',name:b}); else chart2.dispatchAction({type:'legendUnSelect',name:b}); });
+        chart3.setOption({title:{text:'基底液 × 顶料 热力图（'+bn+'）'},series:[{data:buildHeatmapData(data.filter(function(d){return d['品牌']===bn;}))}]}, true);
+        chart4.dispatchAction({type:'downplay'}); var i4=sortedBrands.indexOf(bn); if(i4>=0)chart4.dispatchAction({type:'highlight',dataIndex:i4}); chart4.setOption({title:{text:origTitles.chart4+'（'+bn+'）'}});
+        chart5.dispatchAction({type:'downplay'}); var i5=brands.indexOf(bn); if(i5>=0){chart5.dispatchAction({type:'highlight',seriesIndex:0,dataIndex:i5});chart5.dispatchAction({type:'highlight',seriesIndex:3,dataIndex:i5});} chart5.setOption({title:{text:origTitles.chart5+'（'+bn+'）'}});
+        chart6.dispatchAction({type:'downplay'}); var i6=c6Brands.indexOf(bn); if(i6<0&&brandTotals[bn]<N_THR_TOP)i6=c6Brands.indexOf('其他品牌'); if(i6>=0)chart6.dispatchAction({type:'highlight',dataIndex:i6}); chart6.setOption({title:{text:origTitles.chart6+'（'+bn+'）'}});
+    }
+
+    function resetAll() {
+        Object.keys(brandGroups).forEach(function(b){chart2.dispatchAction({type:'legendSelect',name:b});});
+        chart3.setOption(opt3,true); chart4.dispatchAction({type:'downplay'}); chart4.setOption({title:{text:origTitles.chart4}});
+        chart5.dispatchAction({type:'downplay'}); chart5.setOption({title:{text:origTitles.chart5}});
+        chart6.dispatchAction({type:'downplay'}); chart6.setOption({title:{text:origTitles.chart6}});
+    }
+
+    function fullReset() { drillStack=[]; rebuildSunburst(); updateBadge(); resetAll(); }
+    function stepBack() { drillStack.pop(); rebuildSunburst(); updateBadge(); if(drillStack.length>0)applyBrandFilter(drillStack[0].name); else resetAll(); }
+
+    chart1.on('click', function(params) {
+        var path=params.treePathInfo; if(path.length<2)return;
+        var rawLv=path.length-1, realLv=drillStack.length+rawLv-1;
+        if(realLv===0){
+            var bn=path[1].name;
+            if(drillStack.length===1&&drillStack[0].name===bn){fullReset();return;}
+            drillStack=[{level:'brand',name:bn}];
+        } else if(realLv===1){
+            var bn=drillStack[0].name, baseN=path[rawLv].name;
+            if(drillStack.length===2&&drillStack[1].name===baseN){stepBack();return;}
+            drillStack=[{level:'brand',name:bn},{level:'base',name:baseN}];
+        } else if(realLv===2){
+            var bn=drillStack[0].name, baseN=drillStack[1].name, teaN=path[rawLv].name;
+            if(drillStack.length===3&&drillStack[2].name===teaN){stepBack();return;}
+            drillStack=[{level:'brand',name:bn},{level:'base',name:baseN},{level:'tea',name:teaN}];
+        } else { stepBack(); return; }
+        rebuildSunburst(); updateBadge();
+        if(drillStack.length>0) applyBrandFilter(drillStack[0].name);
+    });
+
+    document.getElementById('filter-close-btn').addEventListener('click', function(e) {
+        if(drillStack.length>1) stepBack(); else fullReset(); e.stopPropagation();
+    });
+
+    // resize
+    window.addEventListener('resize', function() { chart1.resize(); chart2.resize(); chart3.resize(); chart4.resize(); chart5.resize(); chart6.resize(); });
+});
+</script>
+
+</body>
+</html>
