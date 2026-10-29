@@ -1,8 +1,12 @@
-# 奶茶品牌图鉴 v2 — 项目文档
+# 奶茶品牌图鉴 v2
 
 > **9 大品牌 · 200+ 产品 · 多维数据洞察**
 >
 > 纯 HTML+CSS+JS 多页站，ECharts 可视化，无构建工具，零框架依赖
+
+**🌐 在线访问**：<https://saltkernel.github.io/milkytea-brand-analysis/>
+
+**💻 本地直开**：双击 `index.html` 即可运行，无需本地服务器，也无需 `--allow-file-access-from-files` 浏览器参数（数据层已内置 file:// 降级加载方案）。
 
 ---
 
@@ -16,17 +20,17 @@ v2/
 ├── ranking.html        # 排行榜（六大维度 Top 10）
 ├── brand.html          # 品牌详情（雷达图 + 分布图 + 产品表）
 ├── health.html         # 健康指南（热量可视化 + 健康评分 + 减卡建议）
-├── PROJECT.md          # 本文档
 ├── css/
 │   └── style.css       # 公共样式系统（设计令牌 / 导航 / KPI / 表格 / 响应式）
-└── js/
-    ├── data.js          # 全局数据层（MT 单例：异步加载 / KPI / 过滤 / 性价比）
-    └── nav.js           # 顶部导航组件（自动高亮当前页面）
+├── js/
+│   ├── data.js         # 全局数据层（MT 单例：异步加载 / KPI / 过滤 / 性价比）
+│   ├── echarts.js      # ECharts 5.x 运行时
+│   └── nav.js          # 顶部导航组件（自动高亮当前页面）
+└── data/
+    ├── milkyTea.json      # 200+ 条产品数据（9 品牌 × 12 字段）
+    ├── milkyTea.data.js   # 数据的 JS 内嵌版本（file:// 本地直开时自动降级加载）
+    └── milkTea.xlsx       # 原始数据表
 ```
-
-**外部依赖**（不纳入本目录）：
-- `../data/milkyTea.json` — 200+ 条产品数据（9 品牌 × 12 字段）
-- `../js/echarts.js` — ECharts 5.x 运行时
 
 ---
 
@@ -95,7 +99,7 @@ v2/
 
 ### 3.1 数据来源
 
-`../data/milkyTea.json` — 200+ 条产品记录，字段：
+`data/milkyTea.json` — 200+ 条产品记录，字段：
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
@@ -132,6 +136,20 @@ MT.KPI()               // 汇总统计 {totalProducts, brandCount, avgUnitPrice,
 MT.filterValid()       // 过滤 #DIV/0! 和无效数据
 MT.costPerformance(item) // 性价比 = 容量ml / 总价元
 ```
+
+### 3.3 双环境数据加载策略
+
+浏览器禁止 `file://` 页面通过 fetch 读取本地文件（CORS 策略），因此数据层按运行环境自动选择加载方式：
+
+| 环境 | 加载方式 |
+|------|----------|
+| `http(s)`（GitHub Pages 等线上部署） | `fetch('data/milkyTea.json')` |
+| `file:`（本地双击 HTML 直开） | 动态插入 `<script>` 加载 `data/milkyTea.data.js`（数据以 `window.MILK_TEA_DATA` 全局变量内嵌） |
+
+> 若更新了 `milkyTea.json`，需重新生成内嵌版本：
+> ```bash
+> node -e "const fs=require('fs');const j=fs.readFileSync('data/milkyTea.json','utf8');JSON.parse(j);fs.writeFileSync('data/milkyTea.data.js','window.MILK_TEA_DATA = '+j.trim()+';')"
+> ```
 
 ---
 
@@ -203,7 +221,7 @@ MT.costPerformance(item) // 性价比 = 容量ml / 总价元
 ## 六、技术亮点
 
 1. **零框架依赖**：纯 HTML+CSS+JS，无 npm、无 webpack、无 jQuery，开箱即用
-2. **异步数据加载**：Fetch API + Promise 单例模式，`MT.ready()` 回调队列确保数据就绪后渲染
+2. **双环境数据加载**：线上走 Fetch API + Promise 单例，本地 file:// 自动降级加载内嵌数据，无需任何浏览器启动参数
 3. **旭日图钻取联动**：ECharts sunburst 三层点击钻取（品牌→基底液→茶底），联动 5 张图表同步筛选 + 标题更新
 4. **统计严谨性**：每张图表标注样本量阈值（n<3 虚线、n<5 散点），避免小样本误导结论
 5. **滚动渐入动画**：IntersectionObserver + CSS transition，图表卡片、section 标题逐个淡入
